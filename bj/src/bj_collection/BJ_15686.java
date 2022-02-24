@@ -12,8 +12,8 @@ public class BJ_15686 {
 	static int N, M, min = Integer.MAX_VALUE;
 	static int[] select;
 	static int[][] dist;
-	static ArrayList<int[]> house = new ArrayList<>();
-	static ArrayList<int[]> chicken = new ArrayList<>();
+	static ArrayList<int[]> house = new ArrayList<>(); // 집 목록
+	static ArrayList<int[]> chicken = new ArrayList<>(); // 치킨집 목록
 	
 	public static void main(String[] args) throws IOException{
 		st = new StringTokenizer(br.readLine());
@@ -38,6 +38,7 @@ public class BJ_15686 {
 	}
 	
 	public static void getDist() {
+		// 각 치킨집에서 각 집까지의 거리를 저장
 		for(int i=0; i<chicken.size(); i++) {
 			for(int j=0; j<house.size(); j++) {
 				dist[i][j] = Math.abs(chicken.get(i)[0]-house.get(j)[0]) + Math.abs(chicken.get(i)[1]-house.get(j)[1]);
@@ -47,6 +48,7 @@ public class BJ_15686 {
 	
 	public static void comb(int cnt, int start) {
 		if(cnt==M) {
+			// M개의 치킨집 조합을 구성하여 거리 계산
 			int sum=0;
 			
 			for(int i=0; i<house.size(); i++) {
