@@ -3,210 +3,209 @@ package bj_collection;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.Arrays;
 import java.util.LinkedList;
+import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.StringTokenizer;
 
 public class BJ_19238 {
-	static BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-	static StringTokenizer st;
-	static int N, M, fuel;
-	static int[][] map;
-	static boolean[][] visited;
-	static Passenger[] psg;
-	static Taxi taxi;
-	static Queue<Passenger> queue;
-	static int[][] deltas = {{-1,0},{0,-1},{1,0},{0,1}};
-	
-	/*	1. 택시에서 가장 가까운 승객 찾기(bfs, 거리가 같으면 0,0에 가까운 승객)
-		2. 목적지까지 거리 계산(bfs)
-		3. 연료가 거리보다 많으면 택시를 목적지로 이동, 거리*2 만큼 연료 추가
-		4. 1~3 반복
-		5. 남은 연료 출력
-		6. 연료가 거리보다 적으면 -1 출력, 종료
-	*/ 
-	
 	static class Taxi{
-		private int x;
-		private int y;
-		private int fuel;
-		
-		public Taxi(int x, int y, int fuel) {
+		int x, y, fuel, move;
+
+		public Taxi(int x, int y, int fuel, int move) {
+			super();
 			this.x = x;
 			this.y = y;
 			this.fuel = fuel;
+			this.move = move;
 		}
 	}
 	
-	static class Passenger implements Comparable<Passenger>{
-		private int x;
-		private int y;
-		private int endX;
-		private int endY;
-		private int distance;
-		
-		public Passenger(int x, int y, int distance) {
+	static class Passanger implements Comparable<Passanger>{
+		int num, x, y, r, c; // x,y 에서 r,c로 가려고 함
+
+		public Passanger(int num, int x, int y, int r, int c) {
+			super();
+			this.num = num;
 			this.x = x;
 			this.y = y;
-			this.distance = distance;
+			this.r = r;
+			this.c = c;
 		}
-		
-		public Passenger(int x, int y, int endX, int endY, int distance) {
-			this.x = x;
-			this.y = y;
-			this.endX = endX;
-			this.endY = endY;
-			this.distance = distance;
-		}
-		
+
 		@Override
-		public int compareTo(Passenger p) {
-			if(this.x>p.x) {
-				return 1;
-			}else if(this.x==p.x) {
-				if(this.y>p.y) {
-					return 1;
-				}
+		public int compareTo(Passanger o) {
+			if(this.x==o.x) {
+				return this.y-o.y;
 			}
-			return -1;
+			return this.x-o.x;
 		}
 	}
 	
-	public static void main(String[] args) throws IOException{
+	static int[][] map, deltas = {{-1,0},{0,-1},{0,1},{1,0}};
+	static int N, M;
+	static Passanger psg[];
+	static Taxi taxi;
+	
+	public static void main(String[] args) throws IOException {
 		inputProcess();
 		mainProcess();
 	}
-	
+
 	public static void mainProcess() {
-		Arrays.sort(psg);
 		for(int i=0; i<M; i++) {
-			int[] tp = findPassenger(taxi.x, taxi.y, 0);
-			//int[] tp = findPassenger(psg);
-			if(tp[0]==-1) {
-				taxi.fuel = -1;
-				break;
+			int[] passInfo = findPassanger(taxi);
+			int passNum = passInfo[0];
+			int dist = passInfo[1];
+			
+			if(passNum==-1 || dist==-1) {
+				System.out.println(-1);
+				return;
 			}
-			taxi.fuel -= tp[0];
-			Passenger p = psg[tp[1]];
-			int useFuel = bfs(p.x, p.y, p.endX, p.endY, p.distance);
-			taxi.fuel -= useFuel;
-			if(taxi.fuel<0) {
-				taxi.fuel = -1;
-				break;
+			taxi.x = psg[passNum].x;
+			taxi.y = psg[passNum].y;
+			taxi.fuel -= dist;
+			if(taxi.fuel<=0) {
+				System.out.println(-1);
+				return;
 			}
-			psg[tp[1]].x = -1;
-			psg[tp[1]].y = -1;
-			taxi.x = p.endX;
-			taxi.y = p.endY;
-			taxi.fuel += useFuel*2;
+			dist = move(passNum);
+			if(dist==-1 || taxi.fuel<0) {
+				System.out.println(-1);
+				return;
+			}
+			taxi.fuel += dist*2;
 		}
+		
 		System.out.println(taxi.fuel);
 	}
 	
-	public static int[] findPassenger(int x, int y, int d) {
-		for(int i=1; i<=N; i++) {
-			Arrays.fill(visited[i], false);
-		}
-		int min = Integer.MAX_VALUE;
-		int minIdx = -1;
-		visited[x][y] = true;
-		queue = new LinkedList<>();
-		queue.offer(new Passenger(x, y, d));
+	public static int move(int n) {
+		boolean visited[][] = new boolean[N+1][N+1];
+		Queue<int[]> q = new LinkedList<>();
+		q.offer(new int[] {psg[n].x, psg[n].y});
+		visited[psg[n].x][psg[n].y] = true;
+		int dist = 0;
+		int size = 0;
 		
-		while(!queue.isEmpty()) {
-			Passenger t = queue.poll();
-			for(int i=0; i<M; i++) {
-				if(t.x==psg[i].x && t.y==psg[i].y) {
-					if(min>t.distance) {
-						min = t.distance;
-						minIdx = i;
-					}else if(min==t.distance) {
-						minIdx = Math.min(i, minIdx);
-					}
-				}
-			}
-			
-			for(int i=0; i<4; i++) {
-				int nx = t.x + deltas[i][0];
-				int ny = t.y + deltas[i][1];
+		while(!q.isEmpty()) {
+			size = q.size();
+			++dist;
+			while(size>0) {
+				int[] poll = q.poll();
+				int x = poll[0];
+				int y = poll[1];
 				
-				if(nx>0 && ny>0 && nx<=N && ny<=N) {
-					if(map[nx][ny]==0 && !visited[nx][ny]) {
+				for(int d=0; d<4; d++) {
+					int nx = x + deltas[d][0];
+					int ny = y + deltas[d][1];
+					
+					if(nx>0 && ny>0 && nx<=N && ny<=N && !visited[nx][ny]) {
+						if(map[nx][ny]==1) continue;
+						
+						if(nx==psg[n].r && ny==psg[n].c) {
+							taxi.x = psg[n].r;
+							taxi.y = psg[n].c;
+							taxi.fuel -= dist;
+							return dist;
+						}
+						
 						visited[nx][ny] = true;
-						queue.offer(new Passenger(nx, ny, t.distance+1));
+						q.offer(new int[] {nx, ny});
 					}
 				}
-			}
-		}
-		
-			
-		if(minIdx==-1) return new int[] {-1, -1};
-		else return new int[] {min, minIdx};
-		
-		/*int min = Integer.MAX_VALUE;
-		int minIdx = 0;
-		for(int i=0; i<M; i++) {
-			if(p[i].x==-1) continue;
-			int dist = bfs(taxi.x, taxi.y, p[i].x, p[i].y, 0);
-			if(dist==-1) return new int[] {-1, -1};
-			if(min>dist) {
-				min = dist;
-				minIdx = i;
-			}
-		}
-		
-		return new int[] {min, minIdx};*/
-	}
-	
-	public static int bfs(int x, int y, int ex, int ey, int d) {
-		for(int i=1; i<=N; i++) {
-			Arrays.fill(visited[i], false);
-		}
-		visited[x][y]=true;
-		queue = new LinkedList<Passenger>();
-		queue.offer(new Passenger(x, y, ex, ey, d));
-		
-		while(!queue.isEmpty()) {
-			Passenger p = queue.poll();
-			if(p.x==p.endX && p.y==p.endY) {
-				return p.distance;
-			}
-			
-			for(int i=0; i<4; i++) {
-				int nx = p.x + deltas[i][0];
-				int ny = p.y + deltas[i][1];
-				
-				if(nx>0 && ny>0 && nx<=N && ny<=N) {
-					if(map[nx][ny]==0 && !visited[nx][ny]) {
-						visited[nx][ny] = true;
-						queue.offer(new Passenger(nx, ny, ex, ey, p.distance+1));
-					}
-				}
+				--size;
 			}
 		}
 		return -1;
 	}
 	
-	public static void inputProcess() throws IOException{
-		st = new StringTokenizer(br.readLine());
+	public static int[] findPassanger(Taxi taxi) {
+		if(map[taxi.x][taxi.y]!=0) {
+			int idx = map[taxi.x][taxi.y] * -1;
+			map[taxi.x][taxi.y] = 0;
+			return new int[] {idx, 0};
+		}
+		PriorityQueue<Passanger> pq = new PriorityQueue<>();
+		boolean visited[][] = new boolean[N+1][N+1];
+		Queue<int[]> q = new LinkedList<>();
+		q.offer(new int[] {taxi.x, taxi.y});
+		visited[taxi.x][taxi.y] = true;
+		int dist = 0;
+		int size = 0;
+		boolean find = false;
+		
+		while(!q.isEmpty()) {
+			if(find) break;
+			size = q.size();
+			++dist;
+			while(size>0) {
+			
+				int[] poll = q.poll();
+				int x = poll[0];
+				int y = poll[1];
+				
+				for(int d=0; d<4; d++) {
+					int nx = x + deltas[d][0];
+					int ny = y + deltas[d][1];
+					
+					if(nx>0 && ny>0 && nx<=N && ny<=N && !visited[nx][ny]) {
+						if(map[nx][ny]==1) continue;
+						
+						if(map[nx][ny]==0) {
+							visited[nx][ny] = true;
+							q.offer(new int[] {nx, ny});
+						}
+						
+						if(map[nx][ny]<0) {
+							int idx = map[nx][ny]*-1;
+							pq.add(psg[idx]);
+							find = true;
+						}
+					}
+				}
+				
+				--size;
+			}
+		}
+		if(pq.size()==0) return new int[] {-1, -1};
+		else {
+			Passanger p = pq.poll();
+			map[p.x][p.y] = 0;
+			return new int[] {p.num, dist};
+		}
+	}
+
+	public static void inputProcess() throws IOException {
+		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+		StringTokenizer st = new StringTokenizer(br.readLine());
+		
 		N = Integer.parseInt(st.nextToken());
 		M = Integer.parseInt(st.nextToken());
-		fuel = Integer.parseInt(st.nextToken());
+		int fuel = Integer.parseInt(st.nextToken());
+		
 		map = new int[N+1][N+1];
-		visited = new boolean[N+1][N+1];
-		psg = new Passenger[M];
 		for(int i=1; i<=N; i++) {
 			st = new StringTokenizer(br.readLine());
 			for(int j=1; j<=N; j++) {
 				map[i][j] = Integer.parseInt(st.nextToken());
 			}
 		}
+		
 		st = new StringTokenizer(br.readLine());
-		taxi = new Taxi(Integer.parseInt(st.nextToken()), Integer.parseInt(st.nextToken()), fuel);
-		for(int i=0; i<M; i++) {
+		int x = Integer.parseInt(st.nextToken());
+		int y = Integer.parseInt(st.nextToken());
+		taxi = new Taxi(x, y, fuel, 0);
+		
+		psg = new Passanger[M+1];
+		for(int i=1; i<=M; i++) {
 			st = new StringTokenizer(br.readLine());
-			psg[i] = new Passenger(Integer.parseInt(st.nextToken()), Integer.parseInt(st.nextToken()), Integer.parseInt(st.nextToken()), Integer.parseInt(st.nextToken()), 0);
+			x = Integer.parseInt(st.nextToken());
+			y = Integer.parseInt(st.nextToken());
+			int r = Integer.parseInt(st.nextToken());
+			int c = Integer.parseInt(st.nextToken());
+			psg[i] = new Passanger(i, x, y, r, c);
+			map[x][y] = i*-1;
 		}
 	}
 }
