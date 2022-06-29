@@ -14,7 +14,7 @@ public class BJ_11404 {
 	static StringTokenizer st;
 	
 	static int N, M, cost[][];
-	static final int INF = 1000000;
+	static final int INF = 1000000000;
 	
 	public static void main(String[] args) throws IOException{
 		N = Integer.parseInt(br.readLine());
